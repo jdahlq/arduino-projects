@@ -1,7 +1,7 @@
 // Detects RPM for the given interrupt pin.
 
-#ifndef RpmDetector.h
-#define RpmDetector.h
+#ifndef RpmDetector_h
+#define RpmDetector_h
 
 #include "Arduino.h"
 
@@ -13,8 +13,8 @@ class RpmDetector {
   int Rpm();
 
  private:
-  int rpm_ = -1;
-  int interrupt_ = -1;
+  const int interrupt_;
+  int rpm_;
 };
 
-#endif
+#endif RpmDetector_h

@@ -22,8 +22,8 @@ class RpmDetector {
     return map(SmoothedRpm(), 0, nominal_rpm_, min, max + 1);
   }
   
-  int GetNominalRpm();
-  void SetNominalRpm(int rpm);
+  int GetNominalRpm() { return nominal_rpm_; }
+  void SetNominalRpm(int rpm) { nominal_rpm_ = rpm; }
 
  private:
   const int interrupt_;

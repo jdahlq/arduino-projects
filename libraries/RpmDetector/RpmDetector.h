@@ -19,7 +19,7 @@ class RpmDetector {
   bool IsStopped();
   // Get the current best approximation for the rpm. 
   int Rpm();
-  // Get smoothed rpm.
+  // Get smoothed rpm, which takes acceleration into account.
   int SmoothedRpm();
   // Map the smoothed rpm onto the supplied range using the nominal rpm as reference.
   long MapSmoothedRpm(long min, long max);
@@ -29,14 +29,15 @@ class RpmDetector {
 
  private:
   // Gets the blips in a safe way.
-  void GetBlips(long* last_blip, long* curr_blip);
+  void GetBlips(long* blips);
+  
+  long ExpectedRpmAtTime(long time);
 
   bool IsBlipDeltaBelowMinRpm(long delta);
  
   const int min_rpm_;
   int nominal_rpm_;
-  volatile long curr_blip_;
-  volatile long last_blip_;
+  volatile long blips_[3];
 };
 
 #endif RpmDetector_h

@@ -8,16 +8,15 @@ namespace {
 }
 
 RpmDetector::RpmDetector(int min_rpm, int nominal_rpm)
-    : min_rpm_(min_rpm), nominal_rpm_(nominal_rpm), curr_blip_(-1), last_blip_(-1) {
+    : min_rpm_(min_rpm), nominal_rpm_(nominal_rpm), blips_({-1}) {
 }
 
 int RpmDetector::Rpm() {
   if (IsStopped()) return 0;
   
   // Read the current and last blip.
-  long curr_blip;
-  long last_blip;
-  GetBlips(&last_blip, &curr_blip);
+  long blips[3];
+  GetBlips(blips);
 
   // If we only have a single blip, use the starting rpm.
   int last_measured_rpm = last_blip == -1 ? min_rpm_
@@ -30,21 +29,20 @@ int RpmDetector::Rpm() {
 }
 
 void RpmDetector::Blip() {
-  last_blip_ = curr_blip_;
-  curr_blip_ = millis();
+  blips_[2] = blips_[1];
+  blips_[1] = blips_[0];
+  blips_[0] = millis();
 }
 
 bool RpmDetector::IsStopped() {
-  long curr_blip;
-  long last_blip;
-  GetBlips(&last_blip, &curr_blip);  
-  return curr_blip == -1 || IsBlipDeltaBelowMinRpm(millis() - curr_blip);
+  long blips[3];
+  GetBlips(blips);  
+  return blips[0] == -1 || IsBlipDeltaBelowMinRpm(millis() - curr_blip);
 }
 
-void RpmDetector::GetBlips(long* last_blip, long* curr_blip) {
+void RpmDetector::GetBlips(long* blips) {
   noInterrupts();
-  *last_blip = last_blip_;
-  *curr_blip = curr_blip_;
+  memcpy(blips_, blips, 3);
   interrupts();
 }
 
@@ -59,4 +57,14 @@ long RpmDetector::MapSmoothedRpm(long min, long max) {
 
 bool RpmDetector::IsBlipDeltaBelowMinRpm(long delta) {
   return BlipDeltaToRpm(delta) < min_rpm_;
+}
+
+// The expected rpm at the given time based on the last two rpm readings.
+long RpmDetector::ExpectedRpmAtTime(long time) {
+  long blips[3];
+  GetBlips(blips); 
+  if (blips[0] == -1) return 0;
+  if (blips[1] == -1) return min_rpm_;
+  if (blips[2]) == -1) return BlipDeltaToRpm(blips[0] - blips[1]);
+  // accel case
 }

@@ -7,35 +7,36 @@
 
 class RpmDetector {
  public:
-  // interrupt: pass the interrupt number, not the pin number.
-  // starting_rpm: assumed rpm when the wheel first starts rotating.
+  // min_rpm: assumed rpm when the wheel first starts rotating. If the current rpm ceiling
+  //          drops below the min rpm, then the wheel is considered stopped.
   // nominal_rpm: the expected "normal" rpm when the wheel gets up to speed.
-  RpmDetector(int interrupt, int starting_rpm, int nominal_rpm);
-  
-  boolean IsStopped() { return stopped_; }
+  RpmDetector(int min_rpm, int nominal_rpm);
+
+  // Call this method when a blip is detected. This method can be called from within an ISR,
+  // and the members it modifies are ISR-safe.
+  void Blip();
+  // Is the wheel stopped?
+  bool IsStopped();
   // Get the current best approximation for the rpm. 
   int Rpm();
-  
   // Get smoothed rpm.
   int SmoothedRpm();
   // Map the smoothed rpm onto the supplied range using the nominal rpm as reference.
-  long MapSmoothedRpm(long min, long max) {
-    return map(SmoothedRpm(), 0, nominal_rpm_, min, max + 1);
-  }
+  long MapSmoothedRpm(long min, long max);
   
   int GetNominalRpm() { return nominal_rpm_; }
   void SetNominalRpm(int rpm) { nominal_rpm_ = rpm; }
 
  private:
-  void OnFirstBlip();
-  void OnBlip();
+  // Gets the blips in a safe way.
+  void GetBlips(long* last_blip, long* curr_blip);
+
+  bool IsBlipDeltaBelowMinRpm(long delta);
  
-  const int interrupt_;
-  const int starting_rpm_;
+  const int min_rpm_;
   int nominal_rpm_;
-  bool stopped_ = true;
-  volatile long curr_blip_ = -1;
-  volatile long last_blip_ = -1;
+  volatile long curr_blip_;
+  volatile long last_blip_;
 };
 
 #endif RpmDetector_h

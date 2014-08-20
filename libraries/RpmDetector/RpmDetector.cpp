@@ -59,12 +59,32 @@ bool RpmDetector::IsBlipDeltaBelowMinRpm(long delta) {
   return BlipDeltaToRpm(delta) < min_rpm_;
 }
 
-// The expected rpm at the given time based on the last two rpm readings.
-long RpmDetector::ExpectedRpmAtTime(long time) {
-  long blips[3];
-  GetBlips(blips); 
+void RpmDetector::ClearOldBlips() {
+  noInterrupts();
+  int start_clear = 3;
+  if (IsBlipDeltaBelowMinRpm(millis() - blips_[0])) start_clear = 0;
+  else if (IsBlipDeltaBelowMinRpm(blips_[0] - blips_[1])) start_clear = 1;
+  else if (IsBlipDeltaBelowMinRpm(blips_[1] - blips_[2])) start_clear = 2;
+  
+  for (int i = start_clear; i < 3; ++i) blips_[i] = -1;
+  interrupts();
+}
+
+// The expected rpm at the given time based on the last two calculated rpm's,
+// i.e. taking acceleration into account. Projected rpm may be negative, and it doesn't
+// consider the ceiling rpm based on the time elapsed since the last blip.
+int RpmDetector::ProjectedRpmAtTime(long time, const long* blips) {
+  // No blips yet...
   if (blips[0] == -1) return 0;
+  // Only one blip...
   if (blips[1] == -1) return min_rpm_;
-  if (blips[2]) == -1) return BlipDeltaToRpm(blips[0] - blips[1]);
-  // accel case
+  
+  const int velocity_0 = BlipDeltaToRpm(blips[0] - blips[1]);
+  // Only two blips...
+  if (blips[2]) == -1) return velocity_0;
+  
+  // Three blips, project velocity with acceleration.
+  const int velocity_1 = BlipDeltaToRpm(blips[1] - blips[2]);
+  const int acceleration = velocity_1 - velocity_0;
+  return velocity_time = velocity_1 + (acceleration * (time - blips[0]));
 }

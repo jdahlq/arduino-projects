@@ -19,12 +19,11 @@ class RpmDetector {
   int SmoothedRpm();
   // Map the smoothed rpm onto the supplied range using the nominal rpm as reference.
   long MapSmoothedRpm(long min, long max) {
-    return map(SmoothedRpm(), 0, nominal_rpm_, min, max);
+    return map(SmoothedRpm(), 0, nominal_rpm_, min, max + 1);
   }
   
   int GetNominalRpm();
   void SetNominalRpm(int rpm);
-  void 
 
  private:
   const int interrupt_;

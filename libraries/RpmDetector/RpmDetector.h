@@ -1,4 +1,6 @@
 // Detects RPM for the given interrupt pin.
+//
+// Note: Unless otherwise specified, periods are expressed in milliseconds.
 
 #ifndef RpmDetector_h
 #define RpmDetector_h
@@ -19,19 +21,17 @@ class RpmDetector {
   int Rpm();
   // Map the smoothed rpm onto the supplied range using the minimum and nominal rpm as reference.
   long MapRpm(long min, long max);
-  void SetNominalRpm(int rpm) {
-    nominal_rpm_ = rpm;
-    min_rpm_ = min_rpm_pct_of_nominal_ * nominal_rpm_;
-  }
+  void SetNominalRpm(int rpm);
 
  private:
   // Gets the blips in a safe way.
   void GetBlips(long* blips);
-  int ProjectedRpmAtTime(long time, const long* blips);
-  bool IsBlipDeltaBelowMinRpm(long delta);
+  // The projected period at a certain time based on the last three blips.
+  long ProjectedPeriodAtTime(long time, const long* blips);
+  bool PeriodIsAboveMax(long period);
  
-  int min_rpm_;
-  int nominal_rpm_;
+  long max_period_;
+  int nominal_period_;
   const float min_rpm_pct_of_nominal_;
   volatile long blips_[3];
 };

@@ -3,9 +3,15 @@
 #include "RpmDetector.h"
 
 namespace {
-  int BlipDeltaToRpm(long blip_delta_ms) {
-    if (blip_delta_ms < 2) return INT_MAX;
-    return 60000L / blip_delta_ms;
+  const long kMillisPerMinute = 60000L;
+
+  int PeriodToRpm(long period) {
+    if (period < 2) return INT_MAX;
+    return kMillisPerMinute / period;
+  }
+
+  long RpmToPeriod(int rpm) {
+    return kMillisPerMinute / rpm;
   }
 }
 
@@ -23,24 +29,29 @@ void RpmDetector::Blip() {
   blips_[0] = millis();
 }
 
+void RpmDetector::SetNominalRpm(int rpm) {
+  nominal_period_ = RpmToPeriod(rpm);
+  max_period_ = RpmToPeriod(min_rpm_pct_of_nominal_ * rpm);
+}
+
 int RpmDetector::Rpm() {
   long blips[3];
   GetBlips(blips);
 
-  int projected_rpm = ProjectedRpmAtTime(millis(), blips);
-  if (projected_rpm == 0) return projected_rpm;
-  int current_rpm_ceiling = BlipDeltaToRpm(millis() - blips[0]);
-  int estimated_rpm = min(projected_rpm, current_rpm_ceiling);
-  return estimated_rpm >= min_rpm_ ? estimated_rpm : 0;
+  const long projected_period = ProjectedPeriodAtTime(millis(), blips);
+  if (projected_period == LONG_MAX) return 0;
+  const long current_period_floor = millis() - blips[0];
+  const long estimated_period = max(projected_period, current_period_floor);
+  return PeriodIsAboveMax(estimated_period) ? 0 : PeriodToRpm(estimated_period);
 }
 
 void RpmDetector::GetBlips(long* blips) {
   noInterrupts();
   // First, clear old blips.
   int start_clear = 3;
-  if (IsBlipDeltaBelowMinRpm(millis() - blips_[0])) start_clear = 0;
-  if (IsBlipDeltaBelowMinRpm(blips_[0] - blips_[1])) start_clear = 1;
-  else if (IsBlipDeltaBelowMinRpm(blips_[1] - blips_[2])) start_clear = 2;
+  if (PeriodIsAboveMax(millis() - blips_[0])) start_clear = 0;
+  if (PeriodIsAboveMax(blips_[0] - blips_[1])) start_clear = 1;
+  else if (PeriodIsAboveMax(blips_[1] - blips_[2])) start_clear = 2;
   for (int i = start_clear; i < 3; ++i) blips_[i] = -1;
 
   for (int i = 0; i < 3; ++i) {
@@ -50,28 +61,35 @@ void RpmDetector::GetBlips(long* blips) {
 }
 
 long RpmDetector::MapRpm(long min, long max) {
-  return map(Rpm(), min_rpm_, nominal_rpm_, min, max + 1);
+  return map(Rpm(), PeriodToRpm(max_period_), PeriodToRpm(nominal_period_), min, max + 1);
 }
 
-bool RpmDetector::IsBlipDeltaBelowMinRpm(long delta) {
-  return BlipDeltaToRpm(delta) < min_rpm_;
+bool RpmDetector::PeriodIsAboveMax(long period) {
+  return period > max_period_;
 }
 
-// The expected rpm at the given time based on the last two calculated rpm's,
+// The expected period at the given time based on the last two periods,
 // i.e. taking acceleration into account. Projected rpm may be negative, and it doesn't
 // consider the ceiling rpm based on the time elapsed since the last blip.
-int RpmDetector::ProjectedRpmAtTime(long time, const long* blips) {
+long RpmDetector::ProjectedPeriodAtTime(long time, const long* blips) {
   // No blips yet...
-  if (blips[0] == -1) return 0;
+  if (blips[0] == -1) return LONG_MAX;
   // Only one blip...
-  if (blips[1] == -1) return min_rpm_;
+  if (blips[1] == -1) return max_period_;
   
-  const int velocity_0 = BlipDeltaToRpm(blips[0] - blips[1]);
+  const long T_0_long = blips[0] - blips[1];
   // Only two blips...
-  if (blips[2] == -1) return velocity_0;
+  if (blips[2] == -1) return T_0_long;
   
-  // Three blips, project velocity with acceleration.
-  const int velocity_1 = BlipDeltaToRpm(blips[1] - blips[2]);
-  const float acceleration = float(velocity_0 - velocity_1) / (blips[0] - blips[1]);
-  return velocity_1 + (acceleration * (time - blips[0]));
+  // Three blips, project velocity with acceleration. Division is expensive, so we avoid
+  // it as much as possible. Floats are used due to the cubic part of the expression, which
+  // uint32_t (unsigned long) cannot accomodate.
+  const float T_0 = T_0_long;
+  const float T_1 = blips[1] - blips[2];
+  const float T_c = time - blips[0];
+
+  const float denominator = T_0 * T_1 + T_c * (T_1 - T_0);
+  // Handle the discontinuity.
+  if (denominator == 0) return LONG_MAX;
+  return T_0 * T_0 * T_1 / denominator;
 }

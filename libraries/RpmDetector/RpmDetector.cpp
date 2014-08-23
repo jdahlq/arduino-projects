@@ -1,8 +1,10 @@
 #include "Arduino.h"
+#include "limits.h"
 #include "RpmDetector.h"
 
 namespace {
   int BlipDeltaToRpm(long blip_delta_ms) {
+    if (blip_delta_ms < 2) return INT_MAX;
     return 60000L / blip_delta_ms;
   }
 }
@@ -28,7 +30,8 @@ int RpmDetector::Rpm() {
   int projected_rpm = ProjectedRpmAtTime(millis(), blips);
   if (projected_rpm == 0) return projected_rpm;
   int current_rpm_ceiling = BlipDeltaToRpm(millis() - blips[0]);
-  return min(projected_rpm, current_rpm_ceiling);
+  int estimated_rpm = min(projected_rpm, current_rpm_ceiling);
+  return estimated_rpm >= min_rpm_ ? estimated_rpm : 0;
 }
 
 void RpmDetector::GetBlips(long* blips) {
@@ -36,7 +39,7 @@ void RpmDetector::GetBlips(long* blips) {
   // First, clear old blips.
   int start_clear = 3;
   if (IsBlipDeltaBelowMinRpm(millis() - blips_[0])) start_clear = 0;
-  else if (IsBlipDeltaBelowMinRpm(blips_[0] - blips_[1])) start_clear = 1;
+  if (IsBlipDeltaBelowMinRpm(blips_[0] - blips_[1])) start_clear = 1;
   else if (IsBlipDeltaBelowMinRpm(blips_[1] - blips_[2])) start_clear = 2;
   for (int i = start_clear; i < 3; ++i) blips_[i] = -1;
 
@@ -69,6 +72,6 @@ int RpmDetector::ProjectedRpmAtTime(long time, const long* blips) {
   
   // Three blips, project velocity with acceleration.
   const int velocity_1 = BlipDeltaToRpm(blips[1] - blips[2]);
-  const int acceleration = velocity_1 - velocity_0;
+  const float acceleration = float(velocity_0 - velocity_1) / (blips[0] - blips[1]);
   return velocity_1 + (acceleration * (time - blips[0]));
 }

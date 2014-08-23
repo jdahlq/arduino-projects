@@ -2,7 +2,7 @@
 
 static const int kRpmDetectorInterrupt = 0;
 
-RpmDetector rpm_detector(10, 100);
+RpmDetector rpm_detector(0.1, 100);
 
 void setup() {
 

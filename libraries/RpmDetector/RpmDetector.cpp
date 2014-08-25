@@ -24,6 +24,8 @@ RpmDetector::RpmDetector(float min_rpm_pct_of_nominal, int nominal_rpm)
 }
 
 void RpmDetector::Blip() {
+  // Easy peasy debouncing.
+  if (blips_[0] != -1 && millis() - blips_[0] < 120) return;
   blips_[2] = blips_[1];
   blips_[1] = blips_[0];
   blips_[0] = millis();

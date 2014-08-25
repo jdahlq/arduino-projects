@@ -192,3 +192,15 @@ void MusicPlayer::SetPlaybackRate(long rate) {
 long MusicPlayer::GetNormalPlaybackRate() {
   return wave.dwSamplesPerSec;
 }
+
+void MusicPlayer::Pause() {
+  wave.pause();
+}
+
+bool MusicPlayer::IsPaused() {
+  return wave.isPaused();
+}
+
+void MusicPlayer::Resume() {
+  wave.resume();
+}

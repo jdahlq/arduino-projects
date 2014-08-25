@@ -34,11 +34,11 @@
 // pin 2 is DAC chip select
 
 /** Data direction register for DAC chip select. */
-#define MCP_DAC_CS_DDR  PIN2_DDRREG
+#define MCP_DAC_CS_DDR  PIN19_DDRREG
 /** Port register for DAC chip select. */
-#define MCP_DAC_CS_PORT PIN2_PORTREG
+#define MCP_DAC_CS_PORT PIN19_PORTREG
 /** Port bit number for DAC chip select. */
-#define MCP_DAC_CS_BIT  PIN2_BITNUM
+#define MCP_DAC_CS_BIT  PIN19_BITNUM
 
 // pin 3 is DAC serial clock
 /** Data direction register for DAC clock. */

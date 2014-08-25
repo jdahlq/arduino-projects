@@ -12,6 +12,9 @@ class MusicPlayer {
   bool Init();
   void Play();
   void Stop();
+  void Pause();
+  bool IsPaused();
+  void Resume();
   void NextPlaylist();
   bool NextSong();
   long GetNormalPlaybackRate();

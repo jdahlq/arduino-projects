@@ -40,7 +40,6 @@ void loop() {
 
   // Adjust playback rate.
   if (time - last_play_rate_update > kPlayRateUpdatePeriod) {
-    strip.show();
     last_play_rate_update = time;
     uint32_t normal_rate = player.GetNormalPlaybackRate();
     int rpm = rpm_detector.Rpm();

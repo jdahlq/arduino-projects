@@ -105,6 +105,7 @@ void MusicPlayer::Stop() {
 }
 
 void MusicPlayer::NextPlaylist() {
+  Stop();
   const uint32_t start_position = root.readPosition();  
   bool first_iteration = true;
   for (;;) {
@@ -145,6 +146,7 @@ void MusicPlayer::NextPlaylist() {
 }
 
 bool MusicPlayer::NextSong() {
+  Stop();
   const uint32_t start_position = playlist.readPosition();
   bool first_iteration = true;
   // Skip files that are not WAV.

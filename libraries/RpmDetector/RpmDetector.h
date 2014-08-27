@@ -19,8 +19,8 @@ class RpmDetector {
   void Blip();
   // Get the current best approximation for the rpm. 
   int Rpm();
-  // Map the smoothed rpm onto the supplied range using the minimum and nominal rpm as reference.
-  long MapRpm(long min, long max);
+  // Map an rpm onto the supplied range using the minimum and nominal rpm as reference.
+  long MapRpm(int rpm, long min, long max);
   void SetNominalRpm(int rpm);
 
  private:

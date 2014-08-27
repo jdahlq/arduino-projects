@@ -62,8 +62,8 @@ void RpmDetector::GetBlips(long* blips) {
   interrupts();
 }
 
-long RpmDetector::MapRpm(long min, long max) {
-  return map(Rpm(), PeriodToRpm(max_period_), PeriodToRpm(nominal_period_), min, max + 1);
+long RpmDetector::MapRpm(int rpm, long min, long max) {
+  return map(rpm, PeriodToRpm(max_period_), PeriodToRpm(nominal_period_), min, max + 1);
 }
 
 bool RpmDetector::PeriodIsAboveMax(long period) {

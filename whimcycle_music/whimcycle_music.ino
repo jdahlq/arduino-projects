@@ -1,3 +1,4 @@
+#include "Bounce2.h"
 #include "MusicPlayer.h"
 #include "RpmDetector.h"
 #include "WaveHC.h"
@@ -8,11 +9,16 @@ const int kRpmDetectorPin = 2;
 const int kRpmDetectorInterrupt = 0;
 const int kRpmDetectorInterruptMode = FALLING;
 int avg_rpm = 0;
+bool disable_play_rate_changes = false;
 
 // MusicPlayer settings
 const int kPlayRateUpdatePeriod = 250;
 long last_play_rate_update = 0;
 long current_play_rate_rpm = 0;
+
+// Button settings
+const int kSetNominalRatePin = A0;
+const int kNextSongPin = A1;
 
 // Create an RpmDetector with a nominal rpm of 120 (~10mph) and a minimum/starting
 // rpm of 10% of nominal.
@@ -21,6 +27,11 @@ int d = 500;
 float mult = 0.8;
 
 MusicPlayer player;
+
+Bounce button_set_rate;
+long button_set_rate_time;
+Bounce button_next_song;
+long button_next_song_time;
 
 void setup() {
   Serial.begin(9600);
@@ -32,54 +43,76 @@ void setup() {
   // MusicPlayer setup.
   player.Init();
   player.Play();
+
+  // Button setup.
+  pinMode(kSetNominalRatePin, INPUT_PULLUP);
+  button_set_rate.attach(kSetNominalRatePin);
+  pinMode(kNextSongPin, INPUT_PULLUP);
+  button_next_song.attach(kNextSongPin);
 }
 
 
 void loop() {
   const long time = millis();
 
-  // Adjust playback rate.
-  if (time - last_play_rate_update > kPlayRateUpdatePeriod) {
-    last_play_rate_update = time;
-    uint32_t normal_rate = player.GetNormalPlaybackRate();
-    int rpm = rpm_detector.Rpm();
-    // Serial.print("rpm: ");
-    // Serial.println(rpm);
-    avg_rpm = 0.1 * rpm + 0.9 * avg_rpm;
-    if (avg_rpm < 12) player.Pause();
-    else {
-      if (player.IsPaused()) player.Resume();
-      float rpm_ratio = float(current_play_rate_rpm) / avg_rpm;
-      if (rpm_ratio > 1.04 || rpm_ratio < 0.96) {
-	current_play_rate_rpm = avg_rpm;
-	player.SetPlaybackRate(map(current_play_rate_rpm, 12, 120, normal_rate >> 2, normal_rate));
+  if (button_set_rate.update()) {
+    if (button_set_rate.read() == LOW) {
+      button_set_rate_time = time;
+    } else {
+      if (time - button_set_rate_time > 1000) {
+	disable_play_rate_changes = !disable_play_rate_changes;
+      } else {
+	disable_play_rate_changes = false;
+	if (avg_rpm != 0) rpm_detector.SetNominalRpm(avg_rpm);
       }
-      // player.SetPlaybackRate(rpm_detector.MapRpm(normal_rate >> 2, normal_rate));
+      if (disable_play_rate_changes) {
+	player.Resume();
+	player.SetPlaybackRate(player.GetNormalPlaybackRate());
+      }
     }
   }
-  // TEST
-  /*
-  if (d < 200) mult = 1.02;
-  else if (d > 500) mult = 0.8;
-  noInterrupts();
-  MagneticSensorISR();
-  interrupts();
-  Serial.print("RPM: ");
-  int rpm = rpm_detector.Rpm();
-  Serial.println(rpm);
-  uint32_t normal_rate = player.GetNormalPlaybackRate();
-  player.SetPlaybackRate(rpm_detector.MapRpm(normal_rate >> 2, normal_rate));
-  delay(d);
+  
+  if (button_next_song.update()) {
+    if (button_next_song.read() == LOW) button_next_song_time = time;
+    else {
+      if (time - button_next_song_time > 1000) player.NextPlaylist();
+      else player.NextSong();
+    }
+  }
 
-  Serial.print("RPM: ");
-  Serial.println(rpm_detector.Rpm());
-  normal_rate = player.GetNormalPlaybackRate();
-  player.SetPlaybackRate(rpm_detector.MapRpm(normal_rate >> 2, normal_rate));
+  AdjustPlaybackRate(time);
+}
 
-  delay(d);
-  d *= mult;
-  // END TEST
-  */
+void AdjustPlaybackRate(long time) {
+  // Adjust playback rate.
+  if (time - last_play_rate_update > kPlayRateUpdatePeriod) {
+    player.Play();
+    last_play_rate_update = time;
+    int rpm = rpm_detector.Rpm();
+    if (rpm == 0) avg_rpm = 0;
+    else avg_rpm = (avg_rpm == 0) ? rpm : 0.1 * rpm + 0.9 * avg_rpm;
+    // Serial.print("rpm: ");
+    // Serial.println(rpm);
+
+    // Use normal playrate.
+    if (disable_play_rate_changes) return;
+
+    // Adjust playrate based on rpm.
+    if (avg_rpm == 0) {
+      if (!player.IsPaused()) player.Pause();
+      return;
+    }
+    if (player.IsPaused()) player.Resume();
+    float rpm_ratio = float(current_play_rate_rpm) / avg_rpm;
+    if (rpm_ratio > 1.04 || rpm_ratio < 0.96) {
+      current_play_rate_rpm = avg_rpm;
+      uint32_t normal_rate = player.GetNormalPlaybackRate();
+      player.SetPlaybackRate(rpm_detector.MapRpm(current_play_rate_rpm,
+						 normal_rate >> 2,
+						 normal_rate));
+    }
+    // player.SetPlaybackRate(rpm_detector.MapRpm(normal_rate >> 2, normal_rate));
+  }
 }
 
 void MagneticSensorISR() {

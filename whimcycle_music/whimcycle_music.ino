@@ -6,8 +6,8 @@
 
 // RpmDetector settings
 const int kRpmDetectorPin = 2;
-const int kRpmDetectorInterrupt = 0;
-const int kRpmDetectorInterruptMode = FALLING;
+// const int kRpmDetectorInterrupt = 0;
+// const int kRpmDetectorInterruptMode = FALLING;
 int avg_rpm = 0;
 bool disable_play_rate_changes = false;
 
@@ -32,13 +32,17 @@ Bounce button_set_rate;
 long button_set_rate_time;
 Bounce button_next_song;
 long button_next_song_time;
+Bounce magnetic_sensor;
+long magnetic_sensor_time;
 
 void setup() {
   Serial.begin(9600);
 
   // RpmDetector setup.
   pinMode(kRpmDetectorPin, INPUT_PULLUP);
-  attachInterrupt(kRpmDetectorInterrupt, MagneticSensorISR, kRpmDetectorInterruptMode);
+  // attachInterrupt(kRpmDetectorInterrupt, MagneticSensorISR, kRpmDetectorInterruptMode);
+  magnetic_sensor.attach(kRpmDetectorPin);
+  magnetic_sensor.interval(2);
 
   // MusicPlayer setup.
   player.Init();
@@ -54,6 +58,12 @@ void setup() {
 
 void loop() {
   const long time = millis();
+
+  if (magnetic_sensor.update()) {
+    if (magnetic_sensor.read() == LOW) {
+      MagneticSensorISR();
+    }
+  }
 
   if (button_set_rate.update()) {
     if (button_set_rate.read() == LOW) {
